@@ -1,7 +1,7 @@
 # LaTeX-Word-Counter
 A costumizable LaTeX-Word-Counter. Set up by downloading the file "LaTeX Counter.html" and open it on your browser.
 
-1 Count words from raw LaTeX code: Extracts text directly from code while automatically handling markup and syntax.
+1 Count words from **raw** LaTeX code: Extracts text directly from code while automatically handling markup and syntax.
 
 2 Strip structural document blocks: Optionally skips the preamble or everything before the table of contents (\tableofcontents).
 
@@ -22,3 +22,5 @@ A costumizable LaTeX-Word-Counter. Set up by downloading the file "LaTeX Counter
 10 Three-way table controller: Gives options to entirely delete, entirely keep, or strip only the configuration/layout brackets for standard tables and Tabularray.
 
 11 Granular parent-child controls: Provides master toggles to control entire categories alongside individual checkboxes for micro-customization.
+
+<img width="863" height="1199" alt="image" src="https://github.com/user-attachments/assets/08b67e7e-d2a9-402f-b4d1-0acd5f96caf8" />
