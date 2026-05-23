@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Advanced LaTeX Word Counter</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 20px; line-height: 1.5; background: #f4f4f9; color: #333; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h2 { border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
+        textarea { width: 100%; height: 250px; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-family: monospace; box-sizing: border-box; resize: vertical; margin-bottom: 20px;}
+        .result-panel { position: sticky; top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 1.5em; font-weight: bold; color: #2c3e50; padding: 15px 20px; background: #e8f4fd; border-left: 5px solid #3498db; border-radius: 4px; margin-bottom: 25px; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+        .setting-group { background: #fafafa; padding: 15px; border: 1px solid #e0e0e0; border-radius: 6px; }
+        .setting-group h3 { margin-top: 0; font-size: 1.1em; color: #2c3e50; display: flex; justify-content: space-between; align-items: center;}
+        
+        .controls { display: flex; gap: 5px; }
+        button { cursor: pointer; padding: 4px 8px; border: 1px solid #ccc; background: white; border-radius: 4px; font-size: 0.8em; }
+        button:hover { background: #e0e0e0; }
+
+        .rule { display: flex; flex-direction: column; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+        .rule:last-child { border-bottom: none; }
+        .rule-header { display: flex; align-items: center; font-weight: bold; font-size: 0.95em; cursor: pointer; }
+        .rule-header input, .rule-header select { margin-right: 8px; }
+        .rule-desc { font-size: 0.85em; color: #666; margin-left: 24px; margin-top: 2px; margin-bottom: 6px;}
+        
+        /* Sub-rules styling for granular control */
+        .sub-rules { margin-left: 24px; display: flex; flex-direction: column; gap: 4px; }
+        .sub-rule { font-size: 0.85em; display: flex; align-items: center; }
+        .sub-rule input { margin-right: 6px; }
+
+        code { background: #e8e8e8; padding: 2px 4px; border-radius: 3px; font-size: 0.9em; color: #d35400; }
+        select { padding: 4px; border-radius: 4px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Advanced LaTeX Word Counter</h2>
+        <p>Paste your LaTeX code below. Use the control panel to customize exactly what counts as a "word" using parent toggles or granular sub-functions.</p>
+        
+        <div class="result-panel">
+            <span>Estimated Word Count:</span>
+            <span id="wordCount">0</span>
+        </div>
+
+        <textarea id="input" placeholder="Paste your LaTeX code here..."></textarea>
+        
+        <div class="settings-grid">
+            <div class="setting-group">
+                <h3>Document Structure</h3>
+                
+                <div class="rule">
+                    <label class="rule-header"><input type="checkbox" id="chkPreamble" checked onchange="processText()"> Strip Preamble</label>
+                    <div class="rule-desc">Deletes everything before <code>\begin{document}</code>.</div>
+                </div>
+                <div class="rule">
+                    <label class="rule-header"><input type="checkbox" id="chkToc" checked onchange="processText()"> Strip Table of Contents</label>
+                    <div class="rule-desc">Deletes everything before and including <code>\tableofcontents</code> (Overrides Preamble).</div>
+                </div>
+                <div class="rule">
+                    <label class="rule-header"><input type="checkbox" id="grpTitle" checked onchange="toggleGroup('grpTitle', 'subTitle')"> Strip Title Data</label>
+                    <div class="rule-desc">Master toggle for all title page parameters.</div>
+                    <div class="sub-rules">
+                        <label class="sub-rule"><input type="checkbox" class="subTitle" id="chkCmdTitle" checked onchange="checkGroup('grpTitle', 'subTitle')"> <code>\title{}</code></label>
+                        <label class="sub-rule"><input type="checkbox" class="subTitle" id="chkCmdAuthor" checked onchange="checkGroup('grpTitle', 'subTitle')"> <code>\author{}</code></label>
+                        <label class="sub-rule"><input type="checkbox" class="subTitle" id="chkCmdDate" checked onchange="checkGroup('grpTitle', 'subTitle')"> <code>\date{}</code></label>
+                        <label class="sub-rule"><input type="checkbox" class="subTitle" id="chkCmdMaketitle" checked onchange="checkGroup('grpTitle', 'subTitle')"> <code>\maketitle</code></label>
+                        <label class="sub-rule"><input type="checkbox" class="subTitle" id="chkEnvTitlepage" checked onchange="checkGroup('grpTitle', 'subTitle')"> <code>titlepage</code> environment</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Content & References</h3>
+                <div class="rule">
+                    <label class="rule-header"><input type="checkbox" id="grpRef" checked onchange="toggleGroup('grpRef', 'subRef')"> Formatting & References</label>
+                    <div class="rule-desc">Master toggle for citations, structural headings, and notes.</div>
+                    <div class="sub-rules">
+                        <label class="sub-rule"><input type="checkbox" class="subRef" id="chkSubCite" checked onchange="checkGroup('grpRef', 'subRef')"> Citations (<code>\cite</code>, <code>\parencite</code>, etc.)</label>
+                        <label class="sub-rule"><input type="checkbox" class="subRef" id="chkSubRef" checked onchange="checkGroup('grpRef', 'subRef')"> Cross-refs (<code>\ref</code>, <code>\eqref</code>, etc.)</label>
+                        <label class="sub-rule"><input type="checkbox" class="subRef" id="chkSubSec" checked onchange="checkGroup('grpRef', 'subRef')"> Section Headings (<code>\section</code>, etc.)</label>
+                        <label class="sub-rule"><input type="checkbox" class="subRef" id="chkSubCap" checked onchange="checkGroup('grpRef', 'subRef')"> Captions (<code>\caption</code>)</label>
+                        <label class="sub-rule"><input type="checkbox" class="subRef" id="chkSubFoot" checked onchange="checkGroup('grpRef', 'subRef')"> Footnotes (<code>\footnote</code>)</label>
+                    </div>
+                </div>
+                <div class="rule">
+                    <label class="rule-header"><input type="checkbox" id="grpFloat" checked onchange="toggleGroup('grpFloat', 'subFloat')"> Floats & Diagrams</label>
+                    <div class="sub-rules">
+                        <label class="sub-rule"><input type="checkbox" class="subFloat" id="chkEnvFig" checked onchange="checkGroup('grpFloat', 'subFloat')"> <code>figure</code> blocks</label>
+                        <label class="sub-rule"><input type="checkbox" class="subFloat" id="chkEnvTikz" checked onchange="checkGroup('grpFloat', 'subFloat')"> <code>tikzpicture</code> blocks</label>
+                    </div>
+                </div>
+                <div class="rule">
+                    <label class="rule-header"><input type="checkbox" id="grpSi" checked onchange="toggleGroup('grpSi', 'subSi')"> SI Units</label>
+                    <div class="sub-rules">
+                        <label class="sub-rule"><input type="checkbox" class="subSi" id="chkCmdQty" checked onchange="checkGroup('grpSi', 'subSi')"> <code>\qty{}{}</code></label>
+                        <label class="sub-rule"><input type="checkbox" class="subSi" id="chkCmdUnit" checked onchange="checkGroup('grpSi', 'subSi')"> <code>\unit{}</code></label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Math Environments</h3>
+                <div class="rule">
+                    <label class="rule-header"><input type="checkbox" id="grpMathBlock" checked onchange="toggleGroup('grpMathBlock', 'subMathBlock')"> Block Equations</label>
+                    <div class="sub-rules">
+                        <label class="sub-rule"><input type="checkbox" class="subMathBlock" id="chkEnvEq" checked onchange="checkGroup('grpMathBlock', 'subMathBlock')"> <code>equation</code> blocks</label>
+                        <label class="sub-rule"><input type="checkbox" class="subMathBlock" id="chkEnvAlign" checked onchange="checkGroup('grpMathBlock', 'subMathBlock')"> <code>align</code> blocks</label>
+                        <label class="sub-rule"><input type="checkbox" class="subMathBlock" id="chkEnvGather" checked onchange="checkGroup('grpMathBlock', 'subMathBlock')"> <code>gather</code> blocks</label>
+                        <label class="sub-rule"><input type="checkbox" class="subMathBlock" id="chkEnvMatrix" checked onchange="checkGroup('grpMathBlock', 'subMathBlock')"> <code>matrix</code> variants (p, b, small)</label>
+                    </div>
+                </div>
+                <div class="rule">
+                    <label class="rule-header"><input type="checkbox" id="grpMathDisp" checked onchange="toggleGroup('grpMathDisp', 'subMathDisp')"> Display Math</label>
+                    <div class="sub-rules">
+                        <label class="sub-rule"><input type="checkbox" class="subMathDisp" id="chkDispBracket" checked onchange="checkGroup('grpMathDisp', 'subMathDisp')"> <code>\[ ... \]</code></label>
+                        <label class="sub-rule"><input type="checkbox" class="subMathDisp" id="chkDispDollar" checked onchange="checkGroup('grpMathDisp', 'subMathDisp')"> <code>$$ ... $$</code></label>
+                    </div>
+                </div>
+                <div class="rule">
+                    <label class="rule-header"><input type="checkbox" id="chkInlineMath" checked onchange="processText()"> Inline Math Logic</label>
+                    <div class="rule-desc">Deletes <code>$ ... $</code> only if it contains operators (e.g., =, <, >).</div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Tables & Tabular</h3>
+                <div class="rule">
+                    <div class="rule-header">
+                        <select id="selStdTable" onchange="processText()">
+                            <option value="exclude_all" selected>Exclude Everything</option>
+                            <option value="exclude_config">Exclude Config Only</option>
+                            <option value="keep_all">Do Not Exclude</option>
+                        </select>
+                        <span style="margin-left: 8px;">Standard Tables</span>
+                    </div>
+                    <div class="rule-desc">Select the rule above, then pick targets:</div>
+                    <div class="sub-rules">
+                        <label class="sub-rule"><input type="checkbox" id="chkEnvTable" checked onchange="processText()"> <code>table</code></label>
+                        <label class="sub-rule"><input type="checkbox" id="chkEnvTabular" checked onchange="processText()"> <code>tabular</code></label>
+                        <label class="sub-rule"><input type="checkbox" id="chkEnvTabularx" checked onchange="processText()"> <code>tabularx</code> / <code>tabulary</code></label>
+                    </div>
+                </div>
+                <div class="rule">
+                    <div class="rule-header">
+                        <select id="selTblr" onchange="processText()">
+                            <option value="exclude_all">Exclude Everything</option>
+                            <option value="exclude_config" selected>Exclude Config Only</option>
+                            <option value="keep_all">Do Not Exclude</option>
+                        </select>
+                        <span style="margin-left: 8px;">Tabularray</span>
+                    </div>
+                    <div class="rule-desc">Select the rule above, then pick targets:</div>
+                    <div class="sub-rules">
+                        <label class="sub-rule"><input type="checkbox" id="chkEnvTblr" checked onchange="processText()"> <code>tblr</code></label>
+                        <label class="sub-rule"><input type="checkbox" id="chkEnvLongtblr" checked onchange="processText()"> <code>longtblr</code> / <code>tblrlong</code></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('input');
+        const display = document.getElementById('wordCount');
+
+        // Event listener for main input
+        input.addEventListener('input', processText);
+
+        // Group Toggle Logic
+        function toggleGroup(parentId, subClass) {
+            const parent = document.getElementById(parentId);
+            const children = document.querySelectorAll('.' + subClass);
+            children.forEach(child => child.checked = parent.checked);
+            processText();
+        }
+
+        // Child logic to automatically update the parent checkbox state
+        function checkGroup(parentId, subClass) {
+            const parent = document.getElementById(parentId);
+            const children = document.querySelectorAll('.' + subClass);
+            const allChecked = Array.from(children).every(c => c.checked);
+            const someChecked = Array.from(children).some(c => c.checked);
+            
+            parent.checked = allChecked;
+            parent.indeterminate = someChecked && !allChecked;
+            processText();
+        }
+
+        // Initialize indeterminate states on load
+        ['grpTitle', 'grpRef', 'grpFloat', 'grpSi', 'grpMathBlock', 'grpMathDisp'].forEach(id => {
+            const subClass = 'sub' + id.replace('grp', '');
+            checkGroup(id, subClass);
+        });
+
+        // Core Processing Engine
+        function processText() {
+            let text = input.value;
+
+            // 1. Remove comments
+            text = text.replace(/%.*$/gm, " ");
+
+            // 2. Structural Exclusions
+            if (document.getElementById('chkToc').checked) {
+                text = text.replace(/^[\s\S]*?\\tableofcontents/m, " ");
+            } else if (document.getElementById('chkPreamble').checked) {
+                text = text.replace(/^[\s\S]*?\\begin\{document\}/m, " ");
+            }
+
+            // 3. Title Data Group
+            if (document.getElementById('chkEnvTitlepage').checked) text = text.replace(/\\begin\{titlepage\}[\s\S]*?\\end\{titlepage\}/g, " ");
+            if (document.getElementById('chkCmdTitle').checked) text = text.replace(/\\title\*?\{[\s\S]*?\}/g, " ");
+            if (document.getElementById('chkCmdAuthor').checked) text = text.replace(/\\author\*?\{[\s\S]*?\}/g, " ");
+            if (document.getElementById('chkCmdDate').checked) text = text.replace(/\\date\*?\{[\s\S]*?\}/g, " ");
+            if (document.getElementById('chkCmdMaketitle').checked) text = text.replace(/\\maketitle/g, " ");
+
+            // 4. Formatting & References Group
+            if (document.getElementById('chkSubCite').checked) text = text.replace(/\\(cite[a-zA-Z]*|parencite|textcite)\*?(\[[^\]]*\])?\{[^}]*\}/g, " ");
+            if (document.getElementById('chkSubRef').checked) text = text.replace(/\\(ref|pageref|cref|eqref)\*?(\[[^\]]*\])?\{[^}]*\}/g, " ");
+            if (document.getElementById('chkSubSec').checked) text = text.replace(/\\(section|subsection|subsubsection|chapter|part)\*?(\[[^\]]*\])?\{[^}]*\}/g, " ");
+            if (document.getElementById('chkSubCap').checked) text = text.replace(/\\caption\*?(\[[^\]]*\])?\{[^}]*\}/g, " ");
+            if (document.getElementById('chkSubFoot').checked) text = text.replace(/\\footnote\{[\s\S]*?\}/g, " ");
+
+            // 5. Floats & Diagrams
+            const floatEnvs = [];
+            if (document.getElementById('chkEnvFig').checked) floatEnvs.push('figure');
+            if (document.getElementById('chkEnvTikz').checked) floatEnvs.push('tikzpicture');
+            floatEnvs.forEach(env => {
+                const regex = new RegExp(`\\\\begin\\{\\s*${env}\\*?\\s*\\}[\\s\\S]*?\\\\end\\{\\s*${env}\\*?\\s*\\}`, 'g');
+                text = text.replace(regex, " ");
+            });
+
+            // 6. SI Units
+            if (document.getElementById('chkCmdQty').checked) text = text.replace(/\\qty\*?(\[[^\]]*\])?\{[^}]*\}\{[^}]*\}/g, " ");
+            if (document.getElementById('chkCmdUnit').checked) text = text.replace(/\\unit\*?(\[[^\]]*\])?\{[^}]*\}/g, " ");
+
+            // 7. Block Math Environments
+            const mathEnvs = [];
+            if (document.getElementById('chkEnvEq').checked) mathEnvs.push('equation');
+            if (document.getElementById('chkEnvAlign').checked) mathEnvs.push('align', 'eqnarray');
+            if (document.getElementById('chkEnvGather').checked) mathEnvs.push('gather');
+            if (document.getElementById('chkEnvMatrix').checked) mathEnvs.push('pmatrix', 'smallmatrix', 'bmatrix', 'matrix');
+            mathEnvs.forEach(env => {
+                const regex = new RegExp(`\\\\begin\\{\\s*${env}\\*?\\s*\\}[\\s\\S]*?\\\\end\\{\\s*${env}\\*?\\s*\\}`, 'g');
+                text = text.replace(regex, " ");
+            });
+
+            // 8. Display Math
+            if (document.getElementById('chkDispBracket').checked) text = text.replace(/\\\[[\s\S]*?\\\]/g, " ");
+            if (document.getElementById('chkDispDollar').checked) text = text.replace(/\$\$[\s\S]*?\$\$/g, " ");
+
+            // 9. Standard Tables
+            const stdTableMode = document.getElementById('selStdTable').value;
+            const stdEnvs = [];
+            if (document.getElementById('chkEnvTable').checked) stdEnvs.push('table');
+            if (document.getElementById('chkEnvTabular').checked) stdEnvs.push('tabular');
+            if (document.getElementById('chkEnvTabularx').checked) stdEnvs.push('tabularx', 'tabulary');
+            
+            if (stdTableMode === 'exclude_all') {
+                stdEnvs.forEach(env => {
+                    const regex = new RegExp(`\\\\begin\\{\\s*${env}\\*?\\s*\\}[\\s\\S]*?\\\\end\\{\\s*${env}\\*?\\s*\\}`, 'g');
+                    text = text.replace(regex, " ");
+                });
+            } else if (stdTableMode === 'exclude_config') {
+                stdEnvs.forEach(env => {
+                    const regexBegin = new RegExp(`\\\\begin\\{\\s*${env}\\*?\\s*\\}(\\[[^\\]]*\\])?(\\{[^{}]*\\})*`, 'g');
+                    text = text.replace(regexBegin, " ");
+                    const regexEnd = new RegExp(`\\\\end\\{\\s*${env}\\*?\\s*\\}`, 'g');
+                    text = text.replace(regexEnd, " ");
+                });
+                text = text.replace(/&/g, " "); 
+            }
+
+            // 10. Tabularray
+            const tblrMode = document.getElementById('selTblr').value;
+            const tblrEnvs = [];
+            if (document.getElementById('chkEnvTblr').checked) tblrEnvs.push('tblr');
+            if (document.getElementById('chkEnvLongtblr').checked) tblrEnvs.push('longtblr', 'tblrlong');
+
+            if (tblrMode === 'exclude_all') {
+                tblrEnvs.forEach(env => {
+                    const regex = new RegExp(`\\\\begin\\{\\s*${env}\\*?\\s*\\}[\\s\\S]*?\\\\end\\{\\s*${env}\\*?\\s*\\}`, 'g');
+                    text = text.replace(regex, " ");
+                });
+            } else if (tblrMode === 'exclude_config') {
+                if (tblrEnvs.length > 0) {
+                    text = text.replace(/\\DefTblrTemplate\{([^{}]*|\{[^{}]*\})*\}\{([^{}]*|\{[^{}]*\})*\}\{([^{}]*|\{[^{}]*\})*\}/g, " ");
+                    const envString = tblrEnvs.join('|');
+                    const beginRegex = new RegExp(`\\\\begin\\{(${envString})\\*?\\}\\s*(\\[[^\\]]*\\])?\\s*\\{([^{}]*|\\{[^{}]*\\})*\\}`, 'g');
+                    text = text.replace(beginRegex, " ");
+                    const endRegex = new RegExp(`\\\\end\\{(${envString})\\*?\\}`, 'g');
+                    text = text.replace(endRegex, " ");
+                    text = text.replace(/&/g, " ");
+                }
+            }
+
+            // 11. Inline Math
+            if (document.getElementById('chkInlineMath').checked) {
+                text = text.replace(/\$([^\$]+)\$/g, (match, innerContent) => {
+                    if (/[=><]|\\leq|\\geq|\\approx|\\equiv|\\sim/.test(innerContent)) {
+                        return " "; 
+                    } else {
+                        return " " + innerContent + " "; 
+                    }
+                });
+            }
+
+            // 12. Final Global Cleanup (Double slashes, stray brackets, general macro formatting)
+            text = text.replace(/\\(begin|end)\{[^}]*\}/g, " ");
+            text = text.replace(/\\\\/g, " ");
+            text = text.replace(/\\[a-zA-Z]+\*?/g, " ");
+            text = text.replace(/[\{\}]/g, " ");
+
+            // 13. Count Array
+            const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+            display.innerText = words.length;
+        }
+
+        // Run once on load to initialize the count
+        processText();
+    </script>
+    <footer style="text-align: center; margin-top: 30px; padding-bottom: 20px; font-size: 0.85em; color: #7f8c8d;">
+        &copy; 2026 FallingDove. <br>
+        This software is open-source and released under the 
+        <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" style="color: #3498db; text-decoration: none;">GNU GPLv3 License</a>.
+    </footer>
+</body>
+</html>
